@@ -43,7 +43,8 @@ const go=document.getElementById('go');if(go)go.onclick=async()=>{
     const gid=res.credential&&res.credential.idToken;
     if(!gid)throw new Error('토큰을 받지 못했습니다');
     if(from==='popup'&&window.opener){window.opener.postMessage({gid,n},'*');v.innerHTML='<p>로그인했어요! 이 창은 곧 닫힙니다.</p>';setTimeout(()=>window.close(),900);return}
-    const back='intent://login?t='+encodeURIComponent(gid)+'&n='+encodeURIComponent(n)+'#Intent;scheme=myeongrang;package=app.saju.fortune;end';
+    const AP={myeongrang:'app.saju.fortune',myeongrangad:'app.myeongrang.free',myeongrangpro:'app.myeongrang.pro'},sc=(q.get('a')||'myeongrang').split('|')[0],pk=AP[sc]||AP.myeongrang,scm=AP[sc]?sc:'myeongrang';
+    const back='intent://login?t='+encodeURIComponent(gid)+'&n='+encodeURIComponent(n)+'#Intent;scheme='+scm+';package='+pk+';end';
     v.innerHTML='<p>로그인했어요!</p><a class="btn go" href="'+back+'">명랑 앱으로 돌아가기</a>';
     location.href=back;
   }catch(e){v.insertAdjacentHTML('beforeend','<p class="err">로그인하지 못했어요. 다시 눌러 주세요. ('+(e.code||e.message)+')</p>')}
