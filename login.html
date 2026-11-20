@@ -35,8 +35,9 @@ button,a.btn{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-i
 <script>
 const CFG={"apiKey":"AIzaSyA79i9qg9Wkj1ZDqvOZqBjQpIoSriRqbpQ","authDomain":"myeongrang.firebaseapp.com","projectId":"myeongrang","storageBucket":"myeongrang.firebasestorage.app","messagingSenderId":"900703621281","appId":"1:900703621281:web:1dd00fd9acb3726a11a0e0"};
 const q=new URLSearchParams(location.search),from=q.get('from'),n=q.get('n')||'',v=document.getElementById('v');
+if(!n||!/^(app|popup)$/.test(from)||(from==='popup'&&!window.opener)){v.innerHTML='<p>명랑 PC 프로그램이나 휴대폰 앱의 로그인 단추로 열어 주세요.</p>'}
 firebase.initializeApp(CFG);
-document.getElementById('go').onclick=async()=>{
+const go=document.getElementById('go');if(go)go.onclick=async()=>{
   try{
     const res=await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
     const gid=res.credential&&res.credential.idToken;
