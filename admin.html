@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>명랑 관리자</title>
+<style>
+:root{--bg:#f6f4fa;--card:#fff;--ink:#2b2340;--mute:#7c7393;--accent:#4b3fb0;--line:#e4def0;--warn:#d23c4f}
+@media (prefers-color-scheme:dark){:root{--bg:#15121c;--card:#1f1a29;--ink:#efeaf6;--mute:#a59cb8;--accent:#9d93ff;--line:#33294a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 "Malgun Gothic","Apple SD Gothic Neo",sans-serif}
+main{max-width:980px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:20px;margin:0 0 4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+input,select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+input[type=email],input[type=text]{flex:1;min-width:220px}
+button{font:inherit;font-weight:700;padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.mute{color:var(--mute)}.err{color:var(--warn)}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;margin-top:10px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--mute);font-weight:600}
+td.n{white-space:nowrap}
+.tag{display:inline-block;padding:0 8px;border-radius:99px;background:var(--line);font-size:12px}
+@media print{.np{display:none}body{background:#fff;color:#000}.card{border:0}}
+</style>
+</head>
+<body>
+<main>
+<h1>명랑 관리자 · 이용 기록 열람</h1>
+<p class="mute np">이용자 본인이 요청한 경우에만 열람하세요. 열람할 때마다 관리자 계정과 시각이 기록됩니다.</p>
+<div id="app" class="card"><p class="mute">불러오는 중…</p></div>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+const CFG={"apiKey":"AIzaSyA79i9qg9Wkj1ZDqvOZqBjQpIoSriRqbpQ","projectId":"myeongrang","login":"https://jinseong1991.github.io/saju-fortune/login.html"},NAV={"home":"홈","chart":"사주 원국·성격","life":"평생운·대운","bok":"타고난 복","shin":"신기·영감","gloss":"사주 용어 사전","today":"오늘의 운세","date":"지정일 운세·달력","month":"월별 운세","year":"연도별·월별 운세","toj":"토정비결","money":"재물운","love":"애정운","work":"직업·시험운","health":"건강운","style":"연애 스타일","marry":"결혼운","kids":"자녀운","face":"인연 몽타주","sok":"속궁합","people":"인연운·인맥","lucky":"오늘의 행운","bio":"바이오리듬","tarot":"타로","dream":"꿈해몽","west":"별자리·혈액형","mbti":"MBTI 검사·궁합","play":"포춘쿠키·고민 구슬","pick":"택일(좋은 날 찾기)","zodiac":"띠별 운세","match":"궁합","ai":"AI 질문지","prof":"프로필","set":"설정·테마"},RELT=['애인·부부','친구','직장 동료·상사','사업·동업','가족'];
+const $=id=>document.getElementById(id),app=$('app'),esc=x=>String(x==null?'':x).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+const p2=x=>String(x).padStart(2,'0'),dt=t=>{const d=new Date(t);return `${d.getFullYear()}.${p2(d.getMonth()+1)}.${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`};
+const plabel=v=>Array.isArray(v)?(v[0]||`${v[3]}.${v[4]}.${v[5]}`):'';
+const pj=(t,d)=>{try{return JSON.parse(t)||d}catch(e){return d}};
+function rows(hist,from,to){return hist.filter(e=>e&&e.t&&(!from||e.t>=from)&&(!to||e.t<to)).sort((a,b)=>b.t-a.t).map(e=>({t:e.t,when:dt(e.t),menu:NAV[e.v]||e.v,who:e.a||'내 정보',other:plabel(e.b),rel:e.r!=null&&RELT[e.r]||''}))}
+function table(R){return R.length?`<div class="tw"><table><tr><th>언제</th><th>메뉴</th><th>누구 기준</th><th>상대</th><th>관계</th></tr>${R.map(r=>`<tr><td class="n">${r.when}</td><td><b>${esc(r.menu)}</b></td><td>${esc(r.who)}</td><td>${esc(r.other)}</td><td>${r.rel?`<span class="tag">${esc(r.rel)}</span>`:''}</td></tr>`).join('')}</table></div>`:'<p class="mute">해당 기간에 기록이 없습니다.</p>'}
+function csv(R){const q=x=>'"'+String(x).replace(/"/g,'""')+'"';return '﻿'+[['언제','메뉴','누구 기준','상대','관계'],...R.map(r=>[r.when,r.menu,r.who,r.other,r.rel])].map(a=>a.map(q).join(',')).join('\r\n')}
+let CUR=null;
+function showUser(){const u=CUR,d=pj(u.data,{}),H=pj(d['saju-hist'],[]),P=pj(d['saju-prof'],[]),f=$('df').value,t=$('dt').value,R=rows(H,f?new Date(f+'T00:00').getTime():0,t?new Date(t+'T00:00').getTime()+864e5:0);CUR.R=R;
+ $('res').innerHTML=`<div class="row"><b>${esc(u.email||'(메일 없음)')}</b><span class="mute">UID ${esc(u.id)} · 마지막 동기화 ${u.t?dt(u.t):'-'} · 저장된 프로필 ${P.length}명 · 기록 ${H.length}건 중 ${R.length}건 표시</span></div>
+ <div class="row np" style="margin-top:8px"><button data-x="csv">CSV 파일로 저장</button><button data-x="print">인쇄·PDF</button></div>${table(R)}`}
+async function find(){const db=firebase.firestore(),q=$('q').value.trim(),me=firebase.auth().currentUser;$('res').innerHTML='<p class="mute">찾는 중…</p>';
+ try{let docs=[];if(q.includes('@')){const s=await db.collection('users').where('email','==',q.toLowerCase()).get();docs=s.docs}else if(q){const s=await db.collection('users').doc(q).get();if(s.exists)docs=[s]}
+  if(!docs.length){$('res').innerHTML='<p class="err">찾지 못했습니다. 이 업데이트 뒤 한 번도 앱을 쓰지 않은 계정은 메일 주소로 찾을 수 없습니다. UID로 찾아 보세요.</p>';return}
+  const s=docs[0],x=s.data();CUR={id:s.id,email:x.email,data:x.data,t:+x.t||0};
+  await db.collection('adminlog').add({admin:me.email,target:s.id,targetEmail:x.email||'',t:Date.now()});showUser()}
+ catch(e){$('res').innerHTML='<p class="err">불러오지 못했습니다: '+esc(e.code||e.message)+'</p>'}}
+function ui(){const me=firebase.auth().currentUser;
+ app.innerHTML=`<div class="row np"><span>관리자 <b>${esc(me.email)}</b></span><button data-x="out">로그아웃</button></div>
+ <div class="row np" style="margin-top:12px"><input type="text" id="q" placeholder="이용자 메일 주소 또는 UID"><button class="pri" data-x="find">찾기</button></div>
+ <div class="row np" style="margin-top:8px"><label>기간 <input type="date" id="df"></label> ~ <input type="date" id="dt"><button data-x="re">기간 적용</button></div>
+ <div id="res" style="margin-top:12px"></div>`}
+function login(msg){app.innerHTML=(msg?`<p class="err">${esc(msg)}</p>`:'')+'<p>관리자 구글 계정으로 로그인하세요.</p><button class="pri" data-x="in">구글로 로그인</button>'}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-x]');if(!b)return;const x=b.dataset.x;
+ if(x==='in')try{await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider())}catch(er){login('로그인하지 못했습니다 ('+(er.code||er.message)+')')}
+ if(x==='out')firebase.auth().signOut();
+ if(x==='find')find();
+ if(x==='re'&&CUR)showUser();
+ if(x==='print')print();
+ if(x==='csv'&&CUR){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv(CUR.R)],{type:'text/csv'}));a.download='명랑-이용기록-'+(CUR.email||CUR.id)+'.csv';a.click()}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='q')find()});
+if(window.firebase){firebase.initializeApp(CFG);firebase.auth().onAuthStateChanged(async u=>{CUR=null;if(!u)return login();
+ try{const a=await firebase.firestore().collection('admins').doc(u.email).get();if(!a.exists){await firebase.auth().signOut();return login(u.email+' 계정은 관리자로 등록되어 있지 않습니다.')}ui()}catch(er){await firebase.auth().signOut();login('관리자 확인 실패 ('+(er.code||er.message)+')')}})}
+</script>
+</body>
+</html>
