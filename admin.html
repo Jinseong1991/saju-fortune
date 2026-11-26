@@ -40,8 +40,13 @@ th{font-size:12px;color:var(--mute);font-weight:600;position:sticky;top:0;backgr
 td.n{white-space:nowrap}
 .sec{margin-top:16px}
 .empty{padding:40px 10px;text-align:center;color:var(--mute)}
+.modal{position:fixed;inset:0;z-index:20;background:rgba(20,15,35,.55);display:flex;justify-content:center;align-items:flex-start;padding:24px 12px;overflow:auto}
+.modal>div{background:var(--card);border-radius:14px;max-width:820px;width:100%;padding:18px}
+.rtext{white-space:pre-wrap;line-height:1.7;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px}.kv span{color:var(--mute)}
+button.sm{padding:3px 10px;font-size:12px}
 @media (max-width:860px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.list{max-height:none}}
-@media print{header,.np,.side,.stats,.top{display:none!important}.grid{display:block}body{background:#fff;color:#000}.card{border:0}}
+@media print{body.pm main{display:none}.modal{position:static;background:none;padding:0}header,.np,.side,.stats,.top{display:none!important}.grid{display:block}body{background:#fff;color:#000}.card{border:0}}
 </style>
 </head>
 <body>
@@ -60,10 +65,16 @@ const pj=(t,d)=>{try{return JSON.parse(t)||d}catch(e){return d}};
 const menu=v=>NAV[v]||v,DAY=864e5,today0=()=>{const d=new Date();d.setHours(0,0,0,0);return d.getTime()};
 let USERS=[],SEL=null,SEEN=new Set(),F={q:'',sort:'recent'},D={from:'',to:'',menu:''};
 function prep(id,x){const d=pj(x.data,{}),H=pj(d['saju-hist'],[]).filter(e=>e&&e.t).sort((a,b)=>b.t-a.t),P=pj(d['saju-prof'],[]),me=pj(d['saju-v1'],{}).a;
- return{id,email:x.email||'',name:x.name||'',t:+x.t||0,H,P,me,last:Math.max(+x.t||0,H[0]?H[0].t:0)}}
+ return{id,email:x.email||'',name:x.name||'',t:+x.t||0,H,E:H,P,me,last:Math.max(+x.t||0,H[0]?H[0].t:0)}}
 function count(H){const c={};for(const e of H)c[e.v]=(c[e.v]||0)+1;return Object.entries(c).sort((a,b)=>b[1]-a[1])}
+function merge(u){const m=new Map(u.H.map(e=>[e.t,e]));for(const k in u.RS||{}){const x=u.RS[k];if(!m.has(+k))m.set(+k,{t:+k,v:x.v,a:x.a||null,b:pj(x.b,null),r:x.r>=0?x.r:null})}u.E=[...m.values()].sort((a,b)=>b.t-a.t)}
+function fmtP(p){return Array.isArray(p)?`${esc(plabel(p))} · ${p[1]==='f'?'여':'남'} · ${esc(p[3])}.${esc(p[4])}.${esc(p[5])}${String(p[2]).startsWith('l')?' (음력)':''} · ${p[6]?esc(p[6]):'시각 모름'}`:'-'}
 function rows(H,o){const f=o.from?new Date(o.from+'T00:00').getTime():0,t=o.to?new Date(o.to+'T00:00').getTime()+DAY:0;
  return H.filter(e=>(!f||e.t>=f)&&(!t||e.t<t)&&(!o.menu||e.v===o.menu)).map(e=>({t:e.t,when:dt(e.t),menu:menu(e.v),who:e.a||'내 정보',other:plabel(e.b),rel:e.r!=null&&RELT[e.r]||''}))}
+function showRes(id,t){const u=USERS.find(x=>x.id===id),x=u&&u.RS&&u.RS[t];if(!x)return;const L={ko:'한국어',en:'영어',ja:'일본어',zh:'중국어(간체)',tw:'중국어(번체)'};
+ const m=document.createElement('div');m.className='modal';m.innerHTML=`<div><div class="row"><h2 style="margin:0 auto 0 0">${esc(x.m||menu(x.v))} 결과</h2><span class="np row"><button data-x="rprint">인쇄·PDF</button><button class="pri" data-x="rclose">닫기</button></span></div>
+ <div class="kv" style="margin-top:10px"><span>이용자</span><b>${esc(u.name||u.email||u.id)}</b><span>본 시각</span><b>${dt(+x.t)}</b><span>화면 언어</span><b>${L[x.lang]||esc(x.lang)}</b><span>기준 인물</span><b>${esc(x.a||'내 정보')} — ${fmtP(pj(x.ad,null))}</b>${x.b?`<span>상대</span><b>${fmtP(pj(x.b,null))}</b>`:''}${x.r>=0&&RELT[x.r]?`<span>관계</span><b>${RELT[x.r]}</b>`:''}</div>
+ <div class="rtext">${esc(x.text)}</div></div>`;document.body.appendChild(m);document.body.classList.add('pm')}
 function csv(R){const q=x=>'"'+String(x).replace(/"/g,'""')+'"';return '﻿'+[['언제','메뉴','누구 기준','상대','관계'],...R.map(r=>[r.when,r.menu,r.who,r.other,r.rel])].map(a=>a.map(q).join(',')).join('\r\n')}
 function bars(C,n){const max=C[0]?C[0][1]:1;return C.length?`<div class="bars">${C.slice(0,n).map(([v,k])=>`<span>${esc(menu(v))}</span><div class="bar" style="width:${Math.max(2,k/max*100)}%"></div><b>${k}</b>`).join('')}</div>`:'<p class="mute">아직 기록이 없습니다.</p>'}
 function dash(){const t0=today0(),all=USERS.flatMap(u=>u.H),last30=all.filter(e=>e.t>=Date.now()-30*DAY);
@@ -74,24 +85,25 @@ function ulist(){const q=F.q.trim().toLowerCase(),L=USERS.filter(u=>!q||(u.email
  L.sort(F.sort==='many'?(a,b)=>b.H.length-a.H.length:F.sort==='name'?(a,b)=>(a.name||a.email||a.id).localeCompare(b.name||b.email||b.id,'ko'):(a,b)=>b.last-a.last);
  $('ul').innerHTML=L.length?L.map(u=>`<button class="u${SEL===u.id?' on':''}" data-u="${esc(u.id)}"><b><span class="dot${u.last>=t0?' g':''}"></span>${esc(u.name||u.email||'(메일 없음 · 예전 판)')}</b><small>${esc(u.name?u.email:u.id)}</small><br><small>${ago(u.last)} · 기록 ${u.H.length} · 프로필 ${u.P.length}</small></button>`).join(''):'<p class="empty">찾는 이용자가 없습니다.</p>'}
 function detail(){const u=USERS.find(x=>x.id===SEL),dv=$('dv');if(!u){dv.innerHTML='<p class="empty">왼쪽 목록에서 이용자를 고르세요.</p>';return}
- const R=rows(u.H,D),C=count(u.H);u.R=R;
+ const R=rows(u.E,D),C=count(u.E),nr=u.RS?Object.keys(u.RS).length:0;u.R=R;
  dv.innerHTML=`<div class="row"><div style="margin-right:auto"><h2 style="margin:0">${esc(u.name||u.email||'(메일 없음)')}</h2><span class="mute">${esc(u.email)} · UID ${esc(u.id)}</span></div><span class="np row"><button data-x="csv">CSV 저장</button><button data-x="print">인쇄·PDF</button></span></div>
- <div class="row sec"><span class="chip">마지막 이용 ${ago(u.last)}</span><span class="chip">기록 ${u.H.length}건</span><span class="chip">프로필 ${u.P.length}명</span>${u.H.length?`<span class="chip">처음 기록 ${dt(u.H[u.H.length-1].t).slice(0,10)}</span>`:''}</div>
+ <div class="row sec"><span class="chip">마지막 이용 ${ago(u.last)}</span><span class="chip">기록 ${u.E.length}건</span><span class="chip">저장된 결과 ${u.RS?nr+'건':'불러오는 중'}</span><span class="chip">프로필 ${u.P.length}명</span>${u.E.length?`<span class="chip">처음 기록 ${dt(u.E[u.E.length-1].t).slice(0,10)}</span>`:''}${u.rerr?`<span class="chip err">결과 불러오기 실패 ${esc(u.rerr)}</span>`:''}</div>
  <div class="sec"><h2>자주 본 메뉴</h2>${bars(C,6)}</div>
  <div class="sec"><h2>저장한 프로필</h2>${u.P.length?`<div class="tw"><table><tr><th>이름</th><th>성별</th><th>생년월일</th><th>시각</th></tr>${u.P.map(p=>`<tr><td><b>${esc(plabel(p))}</b></td><td>${p[1]==='f'?'여':'남'}</td><td class="n">${esc(p[3])}.${esc(p[4])}.${esc(p[5])}${String(p[2]).startsWith('l')?' (음력)':''}</td><td>${p[6]?esc(p[6]):'모름'}</td></tr>`).join('')}</table></div>`:'<p class="mute">저장한 프로필이 없습니다.</p>'}</div>
  <div class="sec"><h2>이용 기록</h2><div class="row np"><label>기간 <input type="date" id="df" value="${D.from}"></label>~<input type="date" id="dt" value="${D.to}"><select id="dm"><option value="">모든 메뉴</option>${C.map(([v])=>`<option value="${esc(v)}"${D.menu===v?' selected':''}>${esc(menu(v))}</option>`).join('')}</select>${D.from||D.to||D.menu?'<button data-x="dclr">조건 지우기</button>':''}<span class="mute">${R.length}건</span></div>
- ${R.length?`<div class="tw" style="margin-top:8px"><table><tr><th>언제</th><th>메뉴</th><th>누구 기준</th><th>상대</th><th>관계</th></tr>${R.map(r=>`<tr><td class="n">${r.when}</td><td><b>${esc(r.menu)}</b></td><td>${esc(r.who)}</td><td>${esc(r.other)}</td><td>${r.rel?`<span class="chip">${esc(r.rel)}</span>`:''}</td></tr>`).join('')}</table></div>`:'<p class="empty">조건에 맞는 기록이 없습니다.</p>'}</div>`}
+ ${R.length?`<div class="tw" style="margin-top:8px"><table><tr><th>언제</th><th>메뉴</th><th>누구 기준</th><th>상대</th><th>관계</th><th>결과</th></tr>${R.map(r=>`<tr><td class="n">${r.when}</td><td><b>${esc(r.menu)}</b></td><td>${esc(r.who)}</td><td>${esc(r.other)}</td><td>${r.rel?`<span class="chip">${esc(r.rel)}</span>`:''}</td><td>${u.RS&&u.RS[r.t]?`<button class="sm pri" data-r="${r.t}">결과 보기</button>`:'<span class="mute">-</span>'}</td></tr>`).join('')}</table></div>`:'<p class="empty">조건에 맞는 기록이 없습니다.</p>'}</div>`}
 async function pick(id){SEL=id;D={from:'',to:'',menu:''};ulist();detail();if(innerWidth<860)$('dv').scrollIntoView();
+ {const u=USERS.find(x=>x.id===id);if(u&&!u.RS){firebase.firestore().collection('users').doc(id).collection('results').orderBy('t','desc').limit(500).get().then(s=>{u.RS={};for(const d of s.docs){const x=d.data();u.RS[+x.t]=x}},e=>{u.RS={};u.rerr=e.code||e.message}).then(()=>{merge(u);if(SEL===id)detail()})}}
  if(!SEEN.has(id)){SEEN.add(id);const u=USERS.find(x=>x.id===id),me=firebase.auth().currentUser;try{await firebase.firestore().collection('adminlog').add({admin:me.email,target:id,targetEmail:u&&u.email||'',t:Date.now()})}catch(e){}}}
 async function load(){app.innerHTML='<div class="card"><p class="mute">이용자를 불러오는 중…</p></div>';
  try{const s=await firebase.firestore().collection('users').get();USERS=s.docs.map(d=>prep(d.id,d.data()));app.innerHTML=dash();$('fs').value=F.sort;ulist();detail()}
  catch(e){app.innerHTML='<div class="card"><p class="err">불러오지 못했습니다: '+esc(e.code||e.message)+'</p></div>'}}
 function login(msg){$('me').textContent='';$('hb').innerHTML='';app.innerHTML='<div class="card" style="max-width:420px;margin:40px auto;text-align:center">'+(msg?`<p class="err">${esc(msg)}</p>`:'')+'<p>관리자 구글 계정으로 로그인하세요.</p><button class="pri" data-x="in">구글로 로그인</button><p class="mute" style="font-size:12px">이용자 본인이 요청한 경우에만 열람하세요. 이용자를 열어 볼 때마다 관리자 계정과 시각이 기록됩니다.</p></div>'}
-document.addEventListener('click',async e=>{const u=e.target.closest('[data-u]');if(u)return pick(u.dataset.u);const b=e.target.closest('[data-x]');if(!b)return;const x=b.dataset.x;
+document.addEventListener('click',async e=>{const u=e.target.closest('[data-u]');if(u)return pick(u.dataset.u);const rb=e.target.closest('[data-r]');if(rb)return showRes(SEL,+rb.dataset.r);if(e.target.classList.contains('modal')||e.target.closest('[data-x=rclose]')){document.querySelectorAll('.modal').forEach(m=>m.remove());document.body.classList.remove('pm');return}const b=e.target.closest('[data-x]');if(!b)return;const x=b.dataset.x;
  if(x==='in')try{await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider())}catch(er){login('로그인하지 못했습니다 ('+(er.code||er.message)+')')}
  if(x==='out')firebase.auth().signOut();
  if(x==='reload')load();
- if(x==='print')print();
+ if(x==='print'||x==='rprint')print();
  if(x==='dclr'){D={from:'',to:'',menu:''};detail()}
  if(x==='csv'){const s=USERS.find(y=>y.id===SEL);if(!s)return;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv(s.R)],{type:'text/csv'}));a.download='명랑-이용기록-'+(s.email||s.id)+'.csv';a.click()}});
 document.addEventListener('input',e=>{if(e.target.id==='fq'){F.q=e.target.value;ulist()}});
